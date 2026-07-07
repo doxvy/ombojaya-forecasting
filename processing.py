@@ -19,22 +19,22 @@ FEATURES = [
 ]
 TARGET = "Qty"
 
-KATEGORI_ADI = ["All", "Smooth", "Erratic", "Intermittent", "Lumpy"]
+KATEGORI_ADI = ["All", "Smooth Demand", "Erratic Demand", "Intermittent Demand", "Lumpy Demand"]
 
 MODEL_FILES = {
     "XGBoost": {
         "All":          "xgb_all.pkl",
-        "Smooth":       "xgb_smooth.pkl",
-        "Erratic":      "xgb_erractic.pkl",
-        "Intermittent": "xgb_intermittent.pkl",
-        "Lumpy":        "xgb_lumpy.pkl",
+        "Smooth Demand":       "xgb_smooth.pkl",
+        "Erratic Demand":      "xgb_erractic.pkl",
+        "Intermittent Demand": "xgb_intermittent.pkl",
+        "Lumpy Demand":        "xgb_lumpy.pkl",
     },
     "TabNet": {
         "All":          "tabnet_all.zip",
-        "Smooth":       "tabnet_smooth.zip",
-        "Erratic":      "tabnet_erractic.zip",
-        "Intermittent": "tabnet_intermittent.zip",
-        "Lumpy":        "tabnet_lumpy.zip",
+        "Smooth Demand":       "tabnet_smooth.zip",
+        "Erratic Demand":      "tabnet_erractic.zip",
+        "Intermittent Demand": "tabnet_intermittent.zip",
+        "Lumpy Demand":        "tabnet_lumpy.zip",
     },
 }
 
@@ -443,13 +443,13 @@ def hitung_adi_cv2(df_model: pd.DataFrame) -> pd.DataFrame:
         cv2         = (std_demand / mean_demand) ** 2 if mean_demand > 0 else 0.0
 
         if adi < 1.32 and cv2 < 0.49:
-            kategori = "Smooth"
+            kategori = "Smooth Demand"
         elif adi < 1.32 and cv2 >= 0.49:
-            kategori = "Erratic"
+            kategori = "Erratic Demand"
         elif adi >= 1.32 and cv2 < 0.49:
-            kategori = "Intermittent"
+            kategori = "Intermittent Demand"
         else:
-            kategori = "Lumpy"
+            kategori = "Lumpy Demand"
 
         return pd.Series({
             "Total_Weeks":  total_weeks,
