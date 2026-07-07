@@ -364,12 +364,12 @@ if st.session_state.tahap >= 3:
     """)
 
     WARNA_KAT = {
-        "Smooth":       "#2196F3",
-        "Erratic":      "#FF9800",
-        "Intermittent": "#9C27B0",
-        "Lumpy":        "#F44336",
+        "Smooth Demand":       "#2196F3",
+        "Erratic Demand":      "#FF9800",
+        "Intermittent Demand": "#9C27B0",
+        "Lumpy Demand":        "#F44336",
     }
-    URUTAN_KAT = ["Smooth", "Erratic", "Intermittent", "Lumpy"]
+    URUTAN_KAT = ["Smooth Demand", "Erratic Demand", "Intermittent Demand", "Lumpy Demand"]
 
     kat_df = (
         hasil_adi["Kategori"]
@@ -434,25 +434,18 @@ if st.session_state.tahap >= 3:
         pilih_model = st.selectbox("Pilih Model:", ["XGBoost", "TabNet"])
 
     with col_k:
-        KATEGORI_URUT = ["All Product","Smooth Demand","Erratic Demand","Intermittent Demand","Lumpy Demand"]
+        KATEGORI_URUT = ["All", "Smooth Demand", "Erratic Demand", "Intermittent Demand", "Lumpy Demand"]
         pilih_kategori = st.selectbox(
             "Pilih Kategori Demand yang Diramal:",
             options=KATEGORI_URUT,
-            help="Pilih kategori demand. Setiap kategori menggunakan model yang telah dilatih secara khusus."
+            format_func=lambda k: (
+                f"All — semua {len(hasil_adi)} produk Grup A" if k == "All"
+                else f"{k} — {int((hasil_adi['Kategori'] == k).sum())} produk"
+            ),
+            help="Pilih kategori ADI/CV². Setiap kategori menggunakan model yang dilatih khusus."
         )
-        mapping_kategori = {
-            "All Product": "All",
-            "Smooth Demand": "Smooth",
-            "Erratic Demand": "Erratic",
-            "Intermittent Demand": "Intermittent",
-            "Lumpy Demand": "Lumpy"
-        }
-        kategori_data = mapping_kategori[pilih_kategori]
-        n_prod_dipilih = (
-            len(hasil_adi)
-            if kategori_data == "All"
-            else int((hasil_adi["Kategori"] == kategori_data).sum())
-        )
+        n_prod_dipilih = len(hasil_adi) if pilih_kategori == "All" \
+                         else int((hasil_adi["Kategori"] == pilih_kategori).sum())
         st.caption(f"➡ **{n_prod_dipilih} produk** akan diramal")
 
     with col_w:
@@ -542,7 +535,7 @@ if st.session_state.tahap == 4:
             rmse = float(np.sqrt(np.mean((y_pred_val - y_true) ** 2)))
             r2   = float(1 - np.sum((y_true - y_pred_val) ** 2) /
                          (np.sum((y_true - np.mean(y_true)) ** 2) + 1e-8))
-            st.session_state.update({"y_pred_val": y_pred_val, "mae": mae, "rmse": rmse, "r2": r2})
+            st.session_state.update({"y_pred_val": y_pred_val, "mae": mae,  "r2": r2})
     else:
         y_pred_val = st.session_state.y_pred_val
         mae, rmse, r2 = st.session_state.mae, st.session_state.rmse, st.session_state.r2
@@ -559,16 +552,16 @@ if st.session_state.tahap == 4:
     c2.metric("Kategori",       kategori_dipilih)
     c3.metric("Produk Diramal", n_produk)
     c4.metric("MAE",            f"{mae:.2f}")
-    c5.metric("R²",             f"{r2:.4f}")
+    c5.metric("R²",             f"{r2:.2f}")
 
     if r2 >= 0.75:
-        st.success(f"R² = **{r2:.4f}** — Model dikategorikan **kuat**.")
+        st.success(f"R² = **{r2:.2f}** — Model dikategorikan **kuat**.")
     elif r2 >= 0.50:
-        st.info(f"R² = **{r2:.4f}** — Model dikategorikan **sedang (moderate)**.")
+        st.info(f"R² = **{r2:.2f}** — Model dikategorikan **sedang (moderate)**.")
     elif r2 >= 0.25:
-        st.warning(f"R² = **{r2:.4f}** — Model dikategorikan **lemah**.")
+        st.warning(f"R² = **{r2:.2f}** — Model dikategorikan **lemah**.")
     else:
-        st.error(f"R² = **{r2:.4f}** — Model dikategorikan **sangat lemah / tidak layak dijadikan dasar interpretasi**.")
+        st.error(f"R² = **{r2:.2f}** — Model dikategorikan **sangat lemah / tidak layak dijadikan dasar interpretasi**.")
 
     # ── Peramalan per Produk ──────────────────────────────────
     st.subheader("Peramalan per Produk")
