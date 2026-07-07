@@ -184,7 +184,7 @@ st.sidebar.info(
     "**sehingga jumlah penjualan (Qty) dapat dihitung secara akurat dan tidak terjadi**"
     " **duplikasi perhitungan.**"
 )
-st.sidebar.link_button("Lihat Template Master Konversi", "https://docs.google.com/spreadsheets/d/1JNsOJw0B3I2huRCHXwKSgF0MHTFiwkU6GnCO1JcE6Kw/edit?usp=sharing")
+st.sidebar.link_button("Lihat Template Master Konversi", "https://docs.google.com/spreadsheets/d/17HTrta68LjSoM6cgf_akwEvskpCmCHhXir-DB69zUlk/edit?usp=sharing")
 with open("master_konversi.csv", "rb") as file:
     st.sidebar.download_button(
         label="Download Template Master Konversi",
