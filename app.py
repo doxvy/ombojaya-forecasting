@@ -172,26 +172,26 @@ st.sidebar.markdown("---")
 
 st.sidebar.header("Impor Data Transaksi")
 st.sidebar.info(
-    "Data transaksi yang diimpor merupakan hasil ekspor dari "
-    "aplikasi Point of Sale (POS) yang digunakan."
+    "**Data transaksi yang diimpor** merupakan **hasil ekspor** dari "
+    "**aplikasi Point of Sale (POS)** yang digunakan."
 )
 uploaded_file = st.sidebar.file_uploader("Impor Data Transaksi Harian (CSV)", type=["csv"])
 
 st.sidebar.markdown("---")
 st.sidebar.header("Impor Data Konversi")
 st.sidebar.info(
-    "File data konversi digunakan untuk menyeragamkan satuan produk yang berbeda "
-    "sehingga jumlah penjualan (Qty) dapat dihitung secara akurat dan tidak terjadi "
-    "duplikasi perhitungan."
+    "**File data konversi digunakan untuk menyeragamkan satuan produk yang berbeda** "
+    "**sehingga jumlah penjualan (Qty) dapat dihitung secara akurat dan tidak terjadi**"
+    " **duplikasi perhitungan.**"
 )
-st.sidebar.link_button("📝 Buka Spreadsheet Master Konversi", "...")
+st.sidebar.link_button("Lihat Template Master Konversi", "https://docs.google.com/spreadsheets/d/1JNsOJw0B3I2huRCHXwKSgF0MHTFiwkU6GnCO1JcE6Kw/edit?usp=sharing")
 with open("master_konversi.csv", "rb") as file:
     st.sidebar.download_button(
-        label="📥 Download Template Master Konversi",
+        label="Download Template Master Konversi",
         data=file,
         file_name="master_konversi.csv",
         mime="text/csv",
-        help="Unduh file ini ...."
+        help="Unduh file ini untuk menambahkan produk baru atau memperbarui data konversi satuan."
     )
 uploaded_mk = st.sidebar.file_uploader("Impor Data Konversi Satuan (CSV)", type=["csv"])
 
@@ -212,7 +212,7 @@ if st.session_state.tahap > 1:
 # ════════════════════════════════════════════════════════════
 if st.session_state.tahap == 1:
     st.title("Sistem Peramalan Permintaan Produk")
-    st.info("👈 Upload **Data Transaksi & Data Konversi** di sidebar lalu klik **Proses Data**.")
+    st.info(" ◀ Impor **Data Transaksi & Data Konversi** di sidebar lalu klik **Proses Data**.")
     st.image("Foto Toko.jpeg", use_container_width=True)
 
 
@@ -220,7 +220,7 @@ if st.session_state.tahap == 1:
 # TAHAP 2 — Preprocessing
 # ════════════════════════════════════════════════════════════
 if st.session_state.tahap == 2:
-    st.title("⚙️ Memproses Data...")
+    st.title("Memproses Data...")
     with st.spinner("Menjalankan preprocessing, Analisis ABC, dan ADI/CV²..."):
         try:
             raw_df = pd.read_csv(uploaded_file) if uploaded_file.name.endswith(".csv") \
@@ -237,12 +237,12 @@ if st.session_state.tahap == 2:
             else:
                 try:
                     mk = load_master_konversi("master_konversi.csv")
-                    st.sidebar.caption("✅ master_konversi.csv ditemukan.")
+                    st.sidebar.caption("File konversi ditemukan.")
                 except FileNotFoundError:
                     mk = pd.DataFrame(columns=[
                         "Nama Barang", "Dari Satuan", "Ke Satuan Final", "Multiplier", "_match_satuan"
                     ])
-                    st.sidebar.warning("⚠️ master_konversi.csv tidak ditemukan.")
+                    st.sidebar.warning("File konversi tidak ditemukan.")
 
             result = run_processing(raw_df, mk)
             if result[0] is None:
@@ -272,8 +272,8 @@ if st.session_state.tahap == 2:
 # TAHAP 3 — Dashboard ABC + ADI/CV² + Konfigurasi
 # ════════════════════════════════════════════════════════════
 if st.session_state.tahap >= 3:
-    st.title("📊 Dashboard Analisis ABC & Klasifikasi Demand")
-    st.success("✅ Preprocessing selesai!")
+    st.title("Dashboard Analisis ABC & Klasifikasi Demand")
+    st.success("Preprocessing selesai!")
 
     df_weekly_all = st.session_state.df_weekly_all
     hasil_adi     = st.session_state.hasil_adi
@@ -287,17 +287,17 @@ if st.session_state.tahap >= 3:
     n_minggu_ds = df_weekly_all["Tanggal Transaksi"].nunique()
 
     st.info(
-        f"📅 **Dataset:** {tgl_min.strftime('%d %b %Y')} — {tgl_max.strftime('%d %b %Y')}  \n"
-        f"📆 **Total Minggu:** {n_minggu_ds} minggu  \n"
-        f"📦 **Total Produk (SKU):** {ringkasan['n_produk']} produk"
+        f" **Dataset:** {tgl_min.strftime('%d %b %Y')} — {tgl_max.strftime('%d %b %Y')}  \n"
+        f" **Total Minggu:** {n_minggu_ds} minggu  \n"
+        f" **Total Produk:** {ringkasan['n_produk']} produk"
     )
 
     # ── Analisis ABC ──────────────────────────────────────────
     st.subheader("Analisis ABC")
     st.markdown("""
-🔵 **Grup A** : Produk dengan kontribusi pendapatan tertinggi.  
-🟠 **Grup B** : Produk dengan kontribusi pendapatan menengah.  
-⚫ **Grup C** : Produk dengan kontribusi pendapatan terendah.
+    🔵 **Grup A** : Produk dengan kontribusi pendapatan tertinggi.  
+    🟠 **Grup B** : Produk dengan kontribusi pendapatan menengah.  
+    ⚫ **Grup C** : Produk dengan kontribusi pendapatan terendah.
     """)
 
     c1, c2, c3, c4 = st.columns(4)
@@ -326,11 +326,12 @@ if st.session_state.tahap >= 3:
         st.markdown("**Distribusi Jumlah Produk per Grup**")
         fig2 = go.Figure(go.Pie(
             labels=["Grup A", "Grup B", "Grup C"],
-            values=[ringkasan["persen_produk"]["A"],
-                    ringkasan["persen_produk"]["B"],
-                    ringkasan["persen_produk"]["C"]],
-            hole=0.55, marker_colors=["#2196F3", "#FF9800", "#9E9E9E"],
-            textinfo="label+percent"))
+            values=[ringkasan["n_a"], ringkasan["n_b"], ringkasan["n_c"]],
+            hole=0.55,
+            marker_colors=["#2196F3", "#FF9800", "#9E9E9E"],
+            textinfo="none",
+            texttemplate="%{label}<br>%{percent:.0%}",
+            hovertemplate="%{label}<br>%{value} produk<br>%{percent:.0%}<extra></extra>"))
         fig2.update_layout(height=270, margin=dict(l=0, r=0, t=10, b=0), showlegend=False)
         st.plotly_chart(fig2, use_container_width=True)
 
@@ -356,10 +357,10 @@ if st.session_state.tahap >= 3:
     # ── Klasifikasi Demand ADI / CV² ──────────────────────────
     st.subheader("Klasifikasi Demand — ADI & CV²")
     st.markdown("""
-🔵 **Smooth** : Permintaan terjadi secara rutin dengan jumlah penjualan yang relatif stabil.  
-🟠 **Erratic** : Permintaan terjadi secara rutin, tetapi jumlah penjualannya berfluktuasi tinggi.  
-🟣 **Intermittent** : Permintaan terjadi secara tidak rutin, namun jumlah penjualannya relatif stabil.  
-🔴 **Lumpy** : Permintaan terjadi secara tidak rutin dan jumlah penjualannya berfluktuasi tinggi.
+    🔵 **Smooth** : Permintaan terjadi secara rutin dengan jumlah penjualan yang relatif stabil.  
+    🟠 **Erratic** : Permintaan terjadi secara rutin, tetapi jumlah penjualannya berfluktuasi tinggi.  
+    🟣 **Intermittent** : Permintaan terjadi secara tidak rutin, namun jumlah penjualannya relatif stabil.  
+    🔴 **Lumpy** : Permintaan terjadi secara tidak rutin dan jumlah penjualannya berfluktuasi tinggi.
     """)
 
     WARNA_KAT = {
@@ -425,7 +426,7 @@ if st.session_state.tahap >= 3:
     st.markdown("---")
 
     # ── Konfigurasi Peramalan ─────────────────────────────────
-    st.subheader("⚙️ Konfigurasi Peramalan")
+    st.subheader("Konfigurasi Peramalan")
 
     col_m, col_k, col_w = st.columns(3)
 
@@ -433,18 +434,25 @@ if st.session_state.tahap >= 3:
         pilih_model = st.selectbox("Pilih Model:", ["XGBoost", "TabNet"])
 
     with col_k:
-        KATEGORI_URUT = ["All", "Smooth", "Erratic", "Intermittent", "Lumpy"]
+        KATEGORI_URUT = ["All Product","Smooth Demand","Erratic Demand","Intermittent Demand","Lumpy Demand"]
         pilih_kategori = st.selectbox(
             "Pilih Kategori Demand yang Diramal:",
             options=KATEGORI_URUT,
-            format_func=lambda k: (
-                f"All — semua {len(hasil_adi)} produk Grup A" if k == "All"
-                else f"{k} — {int((hasil_adi['Kategori'] == k).sum())} produk"
-            ),
-            help="Pilih kategori ADI/CV². Setiap kategori menggunakan model yang dilatih khusus."
+            help="Pilih kategori demand. Setiap kategori menggunakan model yang telah dilatih secara khusus."
         )
-        n_prod_dipilih = len(hasil_adi) if pilih_kategori == "All" \
-                         else int((hasil_adi["Kategori"] == pilih_kategori).sum())
+        mapping_kategori = {
+            "All Product": "All",
+            "Smooth Demand": "Smooth",
+            "Erratic Demand": "Erratic",
+            "Intermittent Demand": "Intermittent",
+            "Lumpy Demand": "Lumpy"
+        }
+        kategori_data = mapping_kategori[pilih_kategori]
+        n_prod_dipilih = (
+            len(hasil_adi)
+            if kategori_data == "All"
+            else int((hasil_adi["Kategori"] == kategori_data).sum())
+        )
         st.caption(f"➡ **{n_prod_dipilih} produk** akan diramal")
 
     with col_w:
@@ -452,7 +460,6 @@ if st.session_state.tahap >= 3:
         st.markdown("**Rentang Prediksi**")
         st.caption(
             f"Dimulai Senin: **{senin_min.strftime('%d %b %Y')}**  \n"
-            f"Maksimal 16 minggu (sesuai panjang data validasi)"
         )
         n_minggu = st.slider("Jumlah Minggu ke Depan:", 1, 16, 4)
         opsi_minggu_custom = [
@@ -461,12 +468,12 @@ if st.session_state.tahap >= 3:
             for i in range(n_minggu)
         ]
         st.info(
-            f"📅 Meramal **{n_minggu} minggu**:  \n"
+            f"Meramal **{n_minggu} minggu**:  \n"
             f"**{opsi_minggu_custom[0][0].strftime('%d %b %Y')}** — "
             f"**{opsi_minggu_custom[-1][1].strftime('%d %b %Y')}**"
         )
 
-    if st.button("🚀 Jalankan Peramalan", type="primary"):
+    if st.button("Jalankan Peramalan", type="primary"):
         st.session_state.update({
             "model_nama": pilih_model, "kategori_dipilih": pilih_kategori,
             "opsi_minggu": opsi_minggu_custom,
@@ -480,7 +487,7 @@ if st.session_state.tahap >= 3:
 # TAHAP 4 — Hasil Peramalan
 # ════════════════════════════════════════════════════════════
 if st.session_state.tahap == 4:
-    st.title("📈 Dashboard Hasil Peramalan Stok")
+    st.title("Dashboard Hasil Peramalan Penjualan")
 
     df_weekly_all    = st.session_state.df_weekly_all
     hasil_adi        = st.session_state.hasil_adi
@@ -555,16 +562,16 @@ if st.session_state.tahap == 4:
     c5.metric("R²",             f"{r2:.4f}")
 
     if r2 >= 0.75:
-        st.success(f"🎯 R² = **{r2:.4f}** — Model dikategorikan **kuat**.")
+        st.success(f"R² = **{r2:.4f}** — Model dikategorikan **kuat**.")
     elif r2 >= 0.50:
-        st.info(f"📊 R² = **{r2:.4f}** — Model dikategorikan **sedang (moderate)**.")
+        st.info(f"R² = **{r2:.4f}** — Model dikategorikan **sedang (moderate)**.")
     elif r2 >= 0.25:
-        st.warning(f"⚠️ R² = **{r2:.4f}** — Model dikategorikan **lemah**.")
+        st.warning(f"R² = **{r2:.4f}** — Model dikategorikan **lemah**.")
     else:
-        st.error(f"❌ R² = **{r2:.4f}** — Model dikategorikan **sangat lemah / tidak layak dijadikan dasar interpretasi**.")
+        st.error(f"R² = **{r2:.4f}** — Model dikategorikan **sangat lemah / tidak layak dijadikan dasar interpretasi**.")
 
     # ── Peramalan per Produk ──────────────────────────────────
-    st.subheader("🔮 Peramalan ke Depan per Produk")
+    st.subheader("Peramalan per Produk")
     produk_list    = sorted(df_weekly_fit["Nama Barang"].unique().tolist())
     produk_ramalan = st.selectbox("Pilih produk:", produk_list, key="sel_ram")
     df_pr    = df_weekly_fit[df_weekly_fit["Nama Barang"] == produk_ramalan].sort_values("Tanggal Transaksi")
@@ -605,7 +612,7 @@ if st.session_state.tahap == 4:
     st.markdown("---")
 
     # ── Rekap Semua Produk ────────────────────────────────────
-    st.subheader(f"📋 Rekap Kebutuhan Stok {rentang} Minggu ke Depan")
+    st.subheader(f"Rekap Kebutuhan Stok {rentang} Minggu ke Depan")
     st.caption("  |  ".join(
         f"Minggu {i+1}: {s.strftime('%d %b')}–{e.strftime('%d %b %Y')}"
         for i, (s, e) in enumerate(opsi_minggu)
@@ -662,7 +669,7 @@ if st.session_state.tahap == 4:
 
     buffer.seek(0)
     st.download_button(
-        "📥 Unduh Rekap Stok (Excel)", data=buffer,
+        "Unduh Rekap Stok (Excel)", data=buffer,
         file_name=f"Peramalan_{model_nama}_{kategori_dipilih}_{pd.Timestamp.today().strftime('%Y%m%d')}.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         use_container_width=True, type="primary"
