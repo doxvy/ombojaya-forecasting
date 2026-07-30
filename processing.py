@@ -23,18 +23,18 @@ KATEGORI_ADI = ["All", "Smooth Demand", "Erratic Demand", "Intermittent Demand",
 
 MODEL_FILES = {
     "XGBoost": {
-        "All":          "xgb_all.pkl",
-        "Smooth Demand":       "xgb_smooth.pkl",
-        "Erratic Demand":      "xgb_erractic.pkl",
-        "Intermittent Demand": "xgb_intermittent.pkl",
-        "Lumpy Demand":        "xgb_lumpy.pkl",
+        "All":                 "xgb_all_701515.pkl",
+        "Smooth Demand":       "xgb_smooth_701515.pkl",
+        "Erratic Demand":      "xgb_erractic_701515.pkl",
+        "Intermittent Demand": "xgb_intermittent_701515.pkl",
+        "Lumpy Demand":        "xgb_lumpy_701515.pkl",
     },
     "TabNet": {
-        "All":          "tabnet_all.zip",
-        "Smooth Demand":       "tabnet_smooth.zip",
-        "Erratic Demand":      "tabnet_erractic.zip",
-        "Intermittent Demand": "tabnet_intermittent.zip",
-        "Lumpy Demand":        "tabnet_lumpy.zip",
+        "All":                 "tabnet_all_701515.zip",
+        "Smooth Demand":       "tabnet_smooth_701515.zip",
+        "Erratic Demand":      "tabnet_erractic_701515.zip",
+        "Intermittent Demand": "tabnet_intermittent_701515.zip",
+        "Lumpy Demand":        "tabnet_lumpy_701515.zip",
     },
 }
 
@@ -418,6 +418,11 @@ def build_weekly_full(df: pd.DataFrame) -> pd.DataFrame:
 # ─────────────────────────────────────────────────────────────
 def hitung_adi_cv2(df_model: pd.DataFrame) -> pd.DataFrame:
     def _adi_cv2(group):
+
+        LEAD_TIME     = 2      
+        STD_LEAD_TIME = 0.0    
+        Z_SCORE       = 1.65   
+
         total_weeks  = len(group)
         active       = group[group["Qty"] > 0]
         active_weeks = len(active)
@@ -425,15 +430,11 @@ def hitung_adi_cv2(df_model: pd.DataFrame) -> pd.DataFrame:
 
         if active_weeks == 0:
             return pd.Series({
-                "Total_Weeks":  total_weeks,
-                "Active_Weeks": 0,
-                "Zero_Weeks":   zero_weeks,
-                "Zero_Pct":     100.0,
-                "ADI":          np.inf,
-                "Mean_Demand":  0.0,
-                "Std_Demand":   0.0,
-                "CV2":          np.nan,
-                "Kategori":     "Never Sold",
+                "Kategori": "Never Sold", "Total_Weeks": total_weeks,
+                "Active_Weeks": 0, "Zero_Weeks": zero_weeks,
+                "Zero_Pct": 100, "ADI": np.inf,
+                "Mean_Demand": 0, "Std_Demand": 0, "CV2": np.nan,
+                "Std_DLT": 0, "Safety_Stock": 0, "Reorder_Point": 0
             })
 
         adi         = total_weeks / active_weeks
@@ -451,21 +452,27 @@ def hitung_adi_cv2(df_model: pd.DataFrame) -> pd.DataFrame:
         else:
             kategori = "Lumpy Demand"
 
+        std_dLT = np.sqrt(
+            (LEAD_TIME * std_demand**2) + (mean_demand**2 * STD_LEAD_TIME**2)
+        )
+        safety_stock  = Z_SCORE * std_dLT
+        reorder_point = (mean_demand * LEAD_TIME) + safety_stock
+
         return pd.Series({
-            "Total_Weeks":  total_weeks,
-            "Active_Weeks": active_weeks,
-            "Zero_Weeks":   zero_weeks,
-            "Zero_Pct":     round(zero_weeks / total_weeks * 100, 2),
-            "ADI":          round(adi, 4),
-            "Mean_Demand":  round(mean_demand, 2),
-            "Std_Demand":   round(std_demand, 2),
-            "CV2":          round(cv2, 4),
-            "Kategori":     kategori,
+            "Kategori": kategori, "Total_Weeks": total_weeks,
+            "Active_Weeks": active_weeks, "Zero_Weeks": zero_weeks,
+            "Zero_Pct": round(zero_weeks / total_weeks * 100, 2),
+            "ADI": round(adi, 4), "Mean_Demand": round(mean_demand, 2),
+            "Std_Demand": round(std_demand, 2), "CV2": round(cv2, 4),
+            "Std_DLT": round(std_dLT, 2),
+            "Safety_Stock": round(safety_stock, 2),
+            "Reorder_Point": round(reorder_point, 2)
         })
 
     hasil = (
-        df_model.groupby("Nama Barang")
-        .apply(_adi_cv2, include_groups=False)
+        df_model
+        .groupby("Nama Barang")
+        .apply(_adi_cv2)
         .reset_index()
     )
     return hasil.sort_values(["Kategori", "ADI", "CV2"]).reset_index(drop=True)
@@ -507,45 +514,52 @@ def buat_fitur(df_model: pd.DataFrame) -> pd.DataFrame:
 # ─────────────────────────────────────────────────────────────
 # STEP 11: SPLIT DATA
 # ─────────────────────────────────────────────────────────────
-def split_train_val(df: pd.DataFrame, test_size: float = 0.20):
+def split_data_70_15_15(df: pd.DataFrame, train_size: float = 0.70, val_size: float = 0.15):
     unique_dates  = sorted(df["Tanggal Transaksi"].unique())
     n_dates       = len(unique_dates)
-    n_val_dates   = max(1, round(n_dates * test_size))
-    n_train_dates = n_dates - n_val_dates
-    cutoff_date   = unique_dates[n_train_dates - 1]
-    val_start     = unique_dates[n_train_dates]
-
-    train = df[df["Tanggal Transaksi"] <= cutoff_date]
-    val   = df[df["Tanggal Transaksi"] >= val_start]
-
+    n_train_dates = max(1, round(n_dates * train_size))
+    n_val_dates   = max(1, round(n_dates * val_size))
+    n_test_dates  = n_dates - n_train_dates - n_val_dates
+    cutoff_train = unique_dates[n_train_dates - 1]
+    cutoff_val   = unique_dates[n_train_dates + n_val_dates - 1]
+    test_start   = unique_dates[n_train_dates + n_val_dates]
+    train = df[df["Tanggal Transaksi"] <= cutoff_train]
+    val   = df[(df["Tanggal Transaksi"] > cutoff_train) & (df["Tanggal Transaksi"] <= cutoff_val)]
+    test  = df[df["Tanggal Transaksi"] > cutoff_val] 
     avail = [f for f in FEATURES if f in df.columns]
-    return train[avail], train[TARGET], val[avail], val[TARGET]
+    return train[avail], train[TARGET], val[avail], val[TARGET], test[avail], test[TARGET]
 
 
-def hitung_batas_train(df: pd.DataFrame, test_size: float = 0.20) -> pd.Timestamp:
-    unique_dates  = sorted(df["Tanggal Transaksi"].unique())
-    n_val_dates   = max(1, round(len(unique_dates) * test_size))
-    n_train_dates = len(unique_dates) - n_val_dates
+def hitung_batas_train(df: pd.DataFrame,train_size: float = 0.70) -> pd.Timestamp:
+    unique_dates = sorted(df["Tanggal Transaksi"].unique())
+    n_dates = len(unique_dates)
+    n_train_dates = max(1, round(n_dates * train_size))
     return pd.to_datetime(unique_dates[n_train_dates - 1])
 
 
-def info_split(df: pd.DataFrame, test_size: float = 0.20) -> dict:
-    unique_dates  = sorted(df["Tanggal Transaksi"].unique())
-    n_dates       = len(unique_dates)
-    n_val_dates   = max(1, round(n_dates * test_size))
-    n_train_dates = n_dates - n_val_dates
-    cutoff_date   = unique_dates[n_train_dates - 1]
-    val_start     = unique_dates[n_train_dates]
-    train = df[df["Tanggal Transaksi"] <= cutoff_date]
-    val   = df[df["Tanggal Transaksi"] >= val_start]
+def info_split(df: pd.DataFrame, train_size: float = 0.70, val_size: float = 0.15) -> dict:
+    unique_dates = sorted(df["Tanggal Transaksi"].unique())
+    n_dates = len(unique_dates)
+    n_train_dates = max(1, round(n_dates * train_size))
+    n_val_dates = max(1, round(n_dates * val_size))
+    n_test_dates = n_dates - n_train_dates - n_val_dates
+    cutoff_train = unique_dates[n_train_dates - 1]
+    cutoff_val = unique_dates[n_train_dates + n_val_dates - 1]
+    train = df[df["Tanggal Transaksi"] <= cutoff_train]
+    val = df[(df["Tanggal Transaksi"] > cutoff_train) & (df["Tanggal Transaksi"] <= cutoff_val)]
+    test = df[df["Tanggal Transaksi"] > cutoff_val]
     return {
-        "n_minggu_total":  n_dates,
-        "n_minggu_train":  n_train_dates,
-        "n_minggu_val":    n_val_dates,
-        "cutoff_date":     pd.to_datetime(cutoff_date),
-        "val_start":       pd.to_datetime(val_start),
-        "n_rows_train":    len(train),
-        "n_rows_val":      len(val),
+        "n_minggu_total": n_dates,
+        "n_minggu_train": n_train_dates,
+        "n_minggu_val": n_val_dates,
+        "n_minggu_test": n_test_dates,
+        "cutoff_train": pd.to_datetime(cutoff_train),
+        "cutoff_val": pd.to_datetime(cutoff_val),
+        "val_start": pd.to_datetime(unique_dates[n_train_dates]),
+        "test_start": pd.to_datetime(unique_dates[n_train_dates + n_val_dates]),
+        "n_rows_train": len(train),
+        "n_rows_val": len(val),
+        "n_rows_test": len(test),
     }
 
 
