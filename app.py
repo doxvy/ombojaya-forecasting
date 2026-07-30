@@ -184,11 +184,11 @@ st.sidebar.info(
     " **duplikasi perhitungan.**"
 )
 st.sidebar.link_button("Lihat Template Master Konversi", "https://docs.google.com/spreadsheets/d/17HTrta68LjSoM6cgf_akwEvskpCmCHhXir-DB69zUlk/edit?usp=sharing")
-with open("master_konversi.csv", "rb") as file:
+with open("master_konversi (2).csv", "rb") as file:
     st.sidebar.download_button(
         label="Download Template Master Konversi",
         data=file,
-        file_name="master_konversi.csv",
+        file_name="master_konversi (2).csv",
         mime="text/csv",
         help="Unduh file ini untuk menambahkan produk baru atau memperbarui data konversi satuan."
     )
