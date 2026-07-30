@@ -8,7 +8,7 @@ import joblib
 
 from processing import (
     run_processing, load_master_konversi, buat_fitur,
-    split_train_val, hitung_batas_train, info_split,
+    split_data_70_15_15, hitung_batas_train, info_split,
     hitung_minggu_prediksi, FEATURES, TARGET,
     KATEGORI_ADI, MODEL_FILES,
 )
@@ -35,11 +35,11 @@ for _k, _v in {
     "tahap": 1,
     "df_weekly_all": None, "hasil_adi": None,
     "grup_a": None, "grup_b": None, "grup_c": None, "ringkasan": None,
-    "df_weekly_fit": None, "X_val": None, "y_val": None,
+    "df_weekly_fit": None, "X_val": None, "y_val": None, "X_test": None, "y_test": None, 
     "batas_train": None, "fitur_cols": None,
     "model_nama": None, "kategori_dipilih": None, "opsi_minggu": None,
     "y_pred_val": None,
-    "mae": None, "rmse": None, "r2": None,
+    "mae": None, "r2": None,
     "tgl_transaksi_min": None, "tgl_transaksi_max": None,
 }.items():
     if _k not in st.session_state:
@@ -157,7 +157,6 @@ def fmt_tabel_abc(df: pd.DataFrame) -> pd.DataFrame:
     d["total_harga"] = d["total_harga"].apply(lambda x: f"Rp {x:,.0f}")
     d.columns = ["Nama Barang", "Total Pendapatan"]
     return d
-
 
 def senin_berikutnya(tgl: pd.Timestamp) -> pd.Timestamp:
     wd = tgl.weekday()
@@ -424,6 +423,73 @@ if st.session_state.tahap >= 3:
             st.dataframe(subset, use_container_width=True, hide_index=True)
 
     st.markdown("---")
+    
+    #── Manajemen Persediaan ─────────────────────────────────
+    st.subheader("Rekomendasi Persediaan Stok")
+
+    with st.expander("📚 Referensi Teori yang Digunakan", expanded=False):
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown("""
+    ### 📘 Teori Safety Stock
+    **Hadiguna, R. A. (2025)**
+    *Pengantar Teknik dan Manajemen Logistik*
+    📖 [Buka Buku Google Books](https://books.google.co.id/books?id=aY2bEQAAQBAJ)
+    """)
+        with col2:
+            st.markdown("""
+    ### 📄 Teori Reorder Point (ROP)
+    **Simarmata, E., Simanjuntak, L. T. B., & Sembiring, A. C. (2026)**
+    *Perencanaan Pengendalian Persediaan Produk Beras dan Minyak Goreng Menggunakan Metode Reorder Point dan Regresi Linier*
+    📖 [Buka Jurnal](https://doi.org/10.55826/jtmit.v5i2.1737)
+    """)
+    
+    produk_list_0   = sorted(df_weekly_all["Nama Barang"].unique().tolist())
+    produk_pilih    = st.selectbox("Pilih Produk:", produk_list_0, key="sel_ram")
+
+    # Ambil satuan produk dari df_weekly_all
+    satuan = df_weekly_all.loc[df_weekly_all["Nama Barang"] == produk_pilih, "Satuan"].iloc[0]
+
+    # Ambil baris data safety stock & ROP untuk produk yang dipilih
+    data_produk = hasil_adi[hasil_adi["Nama Barang"] == produk_pilih].iloc[0]
+
+    kategori      = data_produk["Kategori"]
+    mean_demand   = data_produk["Mean_Demand"]
+    safety_stock  = data_produk["Safety_Stock"]        
+    reorder_point = data_produk["Reorder_Point"]        
+
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Kategori Demand", kategori)
+    c2.metric("Safety Stock (Lead Time 2 Minggu)", f"{safety_stock:.0f} {satuan}")
+    c3.metric("Reorder Point (ROP)", f"{reorder_point:.0f} {satuan}")
+
+    st.info(
+        f"Rata-rata permintaan mingguan produk ini: **{mean_demand:.1f} {satuan}/minggu**. "
+        f"Perhitungan dengan lead time pemesanan selama **2 minggu**."
+    )
+
+    # ── Rekomendasi berdasarkan Safety Stock & Reorder Point ──────────────────
+    st.subheader("Panduan Pengambilan Keputusan Stok")
+
+    st.markdown(
+        f"""
+        | Kondisi Stok Saat Ini | Status | Rekomendasi |
+        |---|---|---|
+        | Lebih dari **{reorder_point:.0f} {satuan}** | 🟢 Aman | Belum perlu melakukan pemesanan ulang. |
+        | Antara **{safety_stock:.0f} – {reorder_point:.0f} {satuan}** | 🟡 Perhatian | Pantau kondisi stok, untuk perencanaan pemesanan. |
+        | Kurang dari **{safety_stock:.0f} {satuan}** | 🔴 Kritis | Disarankan segera lakukan pemesanan ulang. |
+        """
+    )
+
+    st.info(
+        f"💡 **Cara membaca:** Reorder Point ({reorder_point:.0f} {satuan}) adalah **titik di mana pemesanan ulang "
+        f"sebaiknya mulai diperhatikan**. Safety Stock ({safety_stock:.0f} {satuan}) adalah **cadangan minimum yang "
+        f"seharusnya ada untuk menghadapi kondisi permintaan tak terduga**. Perhitungan ini dilakukan dari pola "
+        f"histori penjualan produk dan **dapat disesuaikan oleh kondisi stok dan biaya.**"
+    )
+
+    st.markdown("---")
+    
 
     # ── Konfigurasi Peramalan ─────────────────────────────────
     st.subheader("Konfigurasi Peramalan")
@@ -454,7 +520,7 @@ if st.session_state.tahap >= 3:
         st.caption(
             f"Dimulai Senin: **{senin_min.strftime('%d %b %Y')}**  \n"
         )
-        n_minggu = st.slider("Jumlah Minggu ke Depan:", 1, 16, 4)
+        n_minggu = st.slider("Jumlah Minggu ke Depan:", 1, 12, 4)
         opsi_minggu_custom = [
             (senin_min + pd.Timedelta(weeks=i),
              senin_min + pd.Timedelta(weeks=i, days=6))
@@ -469,8 +535,11 @@ if st.session_state.tahap >= 3:
     if st.button("Jalankan Peramalan", type="primary"):
         st.session_state.update({
             "model_nama": pilih_model, "kategori_dipilih": pilih_kategori,
-            "opsi_minggu": opsi_minggu_custom,
-            "df_weekly_fit": None, "y_pred_val": None, "mae": None,
+            "opsi_minggu": opsi_minggu_custom, "df_weekly_fit": None, 
+            "X_val": None, "y_val": None,
+            "X_test": None, "y_test": None, 
+            "y_pred_val": None,
+            "mae": None,"r2": None,
             "tahap": 4,
         })
         st.rerun()
@@ -503,19 +572,21 @@ if st.session_state.tahap == 4:
     # ── Build fitur (sekali saja) ─────────────────────────────
     if st.session_state.df_weekly_fit is None:
         with st.spinner("Membangun fitur..."):
-            df_fit     = df_weekly_all[df_weekly_all["Nama Barang"].isin(produk_dipilih)].copy()
-            df_fit     = buat_fitur(df_fit)
-            X_train, y_train, X_val, y_val = split_train_val(df_fit, 0.20)
-            batas_train = hitung_batas_train(df_fit, 0.20)
-            fitur_cols  = get_fitur_cols(X_val.columns)
+            df_fit = df_weekly_all[df_weekly_all["Nama Barang"].isin(produk_dipilih)].copy()
+            df_fit = buat_fitur(df_fit)
+            X_train, y_train, X_val, y_val, X_test, y_test = split_data_70_15_15(df_fit, train_size=0.70,val_size=0.15)
+            batas_train = hitung_batas_train(df_fit, train_size=0.70)
+            fitur_cols = get_fitur_cols(X_val.columns)
             st.session_state.update({
-                "df_weekly_fit": df_fit, "X_val": X_val, "y_val": y_val,
-                "batas_train": batas_train, "fitur_cols": fitur_cols,
+                "df_weekly_fit": df_fit, "X_val": X_val, 
+                "y_val": y_val, "X_test": X_test,
+                "y_test": y_test, "batas_train": batas_train,
+                "fitur_cols": fitur_cols,
             })
 
     df_weekly_fit = st.session_state.df_weekly_fit
-    X_val         = st.session_state.X_val
-    y_val         = st.session_state.y_val
+    X_eval = st.session_state.X_test
+    y_eval = st.session_state.y_test
     batas_train   = st.session_state.batas_train
     fitur_cols    = st.session_state.fitur_cols
 
@@ -528,17 +599,16 @@ if st.session_state.tahap == 4:
 
     # ── Evaluasi ──────────────────────────────────────────────
     if st.session_state.mae is None:
-        with st.spinner("Evaluasi model pada data validasi..."):
-            y_pred_val = np.maximum(predict(model, X_val[fitur_cols], model_nama), 0)
-            y_true     = y_val.values
-            mae  = float(np.mean(np.abs(y_pred_val - y_true)))
-            rmse = float(np.sqrt(np.mean((y_pred_val - y_true) ** 2)))
-            r2   = float(1 - np.sum((y_true - y_pred_val) ** 2) /
+        with st.spinner("Evaluasi model pada data testing..."):
+            y_pred_test = np.maximum(predict(model, X_eval[fitur_cols], model_nama), 0)
+            y_true     = y_eval.values
+            mae  = float(np.mean(np.abs(y_pred_test - y_true)))
+            r2   = float(1 - np.sum((y_true - y_pred_test) ** 2) /
                          (np.sum((y_true - np.mean(y_true)) ** 2) + 1e-8))
-            st.session_state.update({"y_pred_val": y_pred_val, "mae": mae,  "r2": r2})
+            st.session_state.update({"y_pred_val": y_pred_test, "mae": mae,  "r2": r2})
     else:
-        y_pred_val = st.session_state.y_pred_val
-        mae, rmse, r2 = st.session_state.mae, st.session_state.rmse, st.session_state.r2
+        y_pred_test = st.session_state.y_pred_val
+        mae, r2 = st.session_state.mae, st.session_state.r2
 
     st.success(f"Model **{model_nama}** – Kategori **{kategori_dipilih}** berhasil dievaluasi.")
 
@@ -566,7 +636,7 @@ if st.session_state.tahap == 4:
     # ── Peramalan per Produk ──────────────────────────────────
     st.subheader("Peramalan per Produk")
     produk_list    = sorted(df_weekly_fit["Nama Barang"].unique().tolist())
-    produk_ramalan = st.selectbox("Pilih produk:", produk_list, key="sel_ram")
+    produk_ramalan = st.selectbox("Pilih produk:", produk_list, key="sel_ram_2")
     df_pr    = df_weekly_fit[df_weekly_fit["Nama Barang"] == produk_ramalan].sort_values("Tanggal Transaksi")
     satuan_r = df_pr["Satuan"].iloc[-1]
     inp_r    = df_pr[fitur_cols].iloc[[-1]].copy()
@@ -644,11 +714,11 @@ if st.session_state.tahap == 4:
         df_rekap.to_excel(writer, index=False, sheet_name="Rekap Peramalan")
         pd.DataFrame({
             "Metrik": ["Model", "Kategori Demand", "Produk Diramal", "Minggu Prediksi",
-                       "MAE", "RMSE", "R²",
+                       "MAE", "R²",
                        "Periode Dataset", "Batas Train", "Tanggal Export"],
             "Nilai": [
                 model_nama, kategori_dipilih, n_produk, rentang,
-                f"{mae:.4f}", f"{rmse:.4f}", f"{r2:.4f}",
+                f"{mae:.4f}", f"{r2:.4f}",
                 f"{tgl_min_fit.strftime('%d %b %Y')} – {tgl_max_fit.strftime('%d %b %Y')}",
                 batas_train.strftime("%d %b %Y"),
                 pd.Timestamp.today().strftime("%d %b %Y %H:%M"),
@@ -668,7 +738,8 @@ if st.session_state.tahap == 4:
         use_container_width=True, type="primary"
     )
     st.caption("4 sheet: **Rekap Peramalan** | **Evaluasi Model** | **Analisis ABC** | **Klasifikasi ADI-CV2**")
-
+    st.markdown("---")
+    
     st.markdown("---")
     col_back, _ = st.columns([1, 4])
     with col_back:
